@@ -22,11 +22,11 @@ IMAGE_NAME = os.getenv("IMAGE_NAME")  # For Docker evaluation
 API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY") or os.getenv("OPENAI_API_KEY")
 
 # Defaults required by the hackathon spec
-API_BASE_URL = os.getenv("API_BASE_URL") or "https://api.openai.com/v1"
+OPENAI_API_BASE_URL = os.getenv("OPENAI_API_BASE_URL") or "https://api.openai.com/v1"
 MODEL_NAME = os.getenv("MODEL_NAME") or "gpt-4o"
 TASK_NAME = os.getenv("POMDP_TASK", "redteam_simulation")
 BENCHMARK = os.getenv("POMDP_BENCHMARK", "pomdp_redteam_env")
-ENV_URL = os.getenv("ENV_URL", "http://localhost:8000")
+API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
 MAX_STEPS = 8
 TEMPERATURE = 0.2  # Low temperature for strict JSON schema adherence
 SUCCESS_SCORE_THRESHOLD = 1.0
@@ -146,13 +146,13 @@ async def get_model_action(
 
 
 async def main() -> None:
-    client = AsyncOpenAI(base_url=API_BASE_URL, api_key=API_KEY)
+    client = AsyncOpenAI(base_url=OPENAI_API_BASE_URL, api_key=API_KEY)
 
     # Connect to the environment (Docker or Local HTTP)
     if IMAGE_NAME:
         env = await PomdpRedteamEnv.from_docker_image(IMAGE_NAME)
     else:
-        env = PomdpRedteamEnv(base_url=ENV_URL)
+        env = PomdpRedteamEnv(base_url=API_BASE_URL)
 
     history: List[str] = []
     rewards: List[float] = []

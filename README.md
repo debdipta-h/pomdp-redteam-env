@@ -121,13 +121,17 @@ hf auth login
 openenv push --repo-id debdipta-h/pomdp_redteam_env
 ```
 ### 3. Running the AI Evaluation Agent
-To test a particular LLM's ability to maintain a belief state, use the provided inference.py script. This script acts as the "attacker," communicating with the environment over secure WebSockets.
+To test a particular LLM's ability to maintain a belief state, use the provided `inference.py` script. This script acts as the "attacker," communicating with the environment over secure WebSockets.
 
 ```bash
-# Execute the following command in the terminal to test the space using the inference script available.
- OPENAI_API_KEY="your_openai_key" ENV_URL="The pomdp space url" uv run python inference.py
- ```
-
+# Execute the following commands in the terminal to test the space using the inference script.
+#Either set the OpenAI API key or the HF_TOKEN
+export OPENAI_API_KEY="your_openai_key" or HF_TOKEN="your huggingface token" 
+export API_BASE_URL="https://debdipta-h-pomdp-redteam-env.hf.space"
+#Setting of the model name is optional. By default it used gpt-4o
+export MODEL_NAME="gpt-4o" 
+#Finally run the inference script
+uv run python inference.py
 ---
 
 ## ⚖️ Evaluation Metrics
