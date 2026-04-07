@@ -18,15 +18,25 @@ from openai import AsyncOpenAI
 from client import PomdpRedteamEnv
 from models import PomdpRedteamAction, BeliefState
 
-IMAGE_NAME = os.getenv("IMAGE_NAME")  # For Docker evaluation
-API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY") or os.getenv("OPENAI_API_KEY")
+# ---------------------------------------------------------
+# 1. LLM PROXY SETTINGS (Hackathon Required)
+# ---------------------------------------------------------
+# Defaults to the Hugging Face router as requested.
+API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
+MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
 
-# Defaults required by the hackathon spec
-OPENAI_API_BASE_URL = os.getenv("OPENAI_API_BASE_URL") or "https://api.openai.com/v1"
-MODEL_NAME = os.getenv("MODEL_NAME") or "gpt-4o"
+# NO DEFAULT for the token per hackathon rules.
+# Prioritize HF_TOKEN, fallback to API_KEY if injected by the grader.
+API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY")
+
+# ---------------------------------------------------------
+# 2. ENVIRONMENT SETTINGS (To avoid variable collisions)
+# ---------------------------------------------------------
+# Use SPACE_URL to point to your POMDP Web App so it doesn't fight the LLM Router
+SPACE_URL = os.getenv("SPACE_URL", "http://localhost:8000")
+IMAGE_NAME = os.getenv("IMAGE_NAME")  # For Docker evaluation
 TASK_NAME = os.getenv("POMDP_TASK", "redteam_simulation")
 BENCHMARK = os.getenv("POMDP_BENCHMARK", "pomdp_redteam_env")
-API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
 MAX_STEPS = 8
 TEMPERATURE = 0.2  # Low temperature for strict JSON schema adherence
 SUCCESS_SCORE_THRESHOLD = 1.0
@@ -55,7 +65,7 @@ SYSTEM_PROMPT = textwrap.dedent(
             "current_privilege": "none" | "user" | "root",
             "identified_defenses": ["string"]
         },
-        "action_type": "scan_network" | "enumerate_service" | "run_exploit" | "escalate_privileges"|"stop_all_operations",
+        "action_type": "scan_network" | "enumerate_service" | "run_exploit" | "escalate_privileges" | "stop_all_operations",
         "target_port": int or null,
         "payload": "string from inventory or null"
     }
@@ -142,17 +152,20 @@ async def get_model_action(
                 "identified_defenses": [],
             },
             action_type="scan_network",
+            target_port=None,
+            payload=None,
         )
 
 
 async def main() -> None:
-    client = AsyncOpenAI(base_url=OPENAI_API_BASE_URL, api_key=API_KEY)
+    # 1. Initialize the LLM Client pointing to the Hugging Face Router
+    client = AsyncOpenAI(base_url=API_BASE_URL, api_key=API_KEY)
 
-    # Connect to the environment (Docker or Local HTTP)
+    # 2. Connect to the POMDP Environment pointing to the Web Space
     if IMAGE_NAME:
         env = await PomdpRedteamEnv.from_docker_image(IMAGE_NAME)
     else:
-        env = PomdpRedteamEnv(base_url=API_BASE_URL)
+        env = PomdpRedteamEnv(base_url=SPACE_URL)
 
     history: List[str] = []
     rewards: List[float] = []
@@ -166,16 +179,13 @@ async def main() -> None:
         result = await env.reset()
         obs = result.observation
 
-        # We need the task_id to report to the judges exactly which gauntlet is running
-        print(f"The result is {result}")
-        task_id = obs.current_task
-        sys.stderr.write(f"\n[STDERR] Loaded Task: {task_id}\n")
+        sys.stderr.write(f"\n[STDERR] Loaded Task: {obs.current_task}\n")
 
         for step in range(1, MAX_STEPS + 1):
             if result.done:
                 break
 
-            # 1. Get action from LLM (and print its belief state to stderr)
+            # 1. Get action from LLM
             action = await get_model_action(client, step, obs, history)
             action_str = f"{action.action_type}(port={action.target_port}, payload={action.payload})"
 
@@ -187,7 +197,9 @@ async def main() -> None:
             reward = result.reward or 0.0
             done = result.done
 
-            error = obs.metadata.get("error", None)
+            error = (
+                obs.metadata.get("error", None) if hasattr(obs, "metadata") else None
+            )
 
             rewards.append(reward)
             steps_taken = step
@@ -223,7 +235,9 @@ if __name__ == "__main__":
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
     if not API_KEY:
-        sys.stderr.write("ERROR: Please set OPENAI_API_KEY environment variable.\n")
+        sys.stderr.write(
+            "ERROR: Please set HF_TOKEN or API_KEY environment variable.\n"
+        )
         sys.exit(1)
 
     asyncio.run(main())

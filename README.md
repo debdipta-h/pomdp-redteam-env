@@ -103,7 +103,7 @@ For testing and development, the environment is containerized to prevent depende
 
 ```bash
 # Clone the repository
-git clone [https://github.com/debdipta-h/pomdp-redteam-env.git](https://github.com/debdipta-h/pomdp-redteam-env.git)
+git clone https://github.com/debdipta-h/pomdp-redteam-env.git
 cd pomdp-redteam-env
 
 # Build and spin up the isolated OpenEnv server
@@ -124,14 +124,15 @@ openenv push --repo-id debdipta-h/pomdp_redteam_env
 To test a particular LLM's ability to maintain a belief state, use the provided `inference.py` script. This script acts as the "attacker," communicating with the environment over secure WebSockets.
 
 ```bash
-# Execute the following commands in the terminal to test the space using the inference script.
-#Either set the OpenAI API key or the HF_TOKEN
-export OPENAI_API_KEY="your_openai_key" or HF_TOKEN="your huggingface token" 
-export API_BASE_URL="https://debdipta-h-pomdp-redteam-env.hf.space"
-#Setting of the model name is optional. By default it used gpt-4o
-export MODEL_NAME="gpt-4o" 
-#Finally run the inference script
+# 1. Set your LLM token (HF_TOKEN or API_KEY)
+export HF_TOKEN="your_huggingface_token" 
+
+# 2. Point the script to your deployed POMDP Web Space
+export SPACE_URL="https://debdipta-h-pomdp-redteam-env.hf.space"
+
+# 3. Run the evaluation
 uv run python inference.py
+```
 ---
 
 ## ⚖️ Evaluation Metrics
