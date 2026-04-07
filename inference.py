@@ -26,7 +26,7 @@ API_BASE_URL = os.getenv("API_BASE_URL") or "https://api.openai.com/v1"
 MODEL_NAME = os.getenv("MODEL_NAME") or "gpt-4o"
 TASK_NAME = os.getenv("POMDP_TASK", "redteam_simulation")
 BENCHMARK = os.getenv("POMDP_BENCHMARK", "pomdp_redteam_env")
-
+ENV_URL = os.getenv("ENV_URL", "http://localhost:8000")
 MAX_STEPS = 8
 TEMPERATURE = 0.2  # Low temperature for strict JSON schema adherence
 SUCCESS_SCORE_THRESHOLD = 1.0
@@ -152,7 +152,7 @@ async def main() -> None:
     if IMAGE_NAME:
         env = await PomdpRedteamEnv.from_docker_image(IMAGE_NAME)
     else:
-        env = PomdpRedteamEnv(base_url="http://localhost:8000")
+        env = PomdpRedteamEnv(base_url=ENV_URL)
 
     history: List[str] = []
     rewards: List[float] = []

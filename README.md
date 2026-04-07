@@ -81,21 +81,60 @@ The environment features 7 deterministic, reproducible tasks graded on a strict 
 
 ---
 
-## 🚀 Setup & Execution
+## 📊 Baseline Scores
+To provide context for evaluating new agents, we benchmarked several baseline approaches across all 7 tasks (Scores averaged across 5 runs per task, max score 1.0).
 
-### 1. Local Development
-Ensure you have `uv` installed.
+| Agent Type | Average Score | Notes |
+| :--- | :--- | :--- |
+| **Random Action Agent** | 0.02 | Fails entirely; triggers honeypots and drops confidence scores instantly. |
+| **Reactive LLM (GPT-3.5 - No Belief State)** | 0.28 | Solves `task_01` but fails on WAF evasion and honeypots due to lack of memory/deduction. |
+| **POMDP CoT LLM (GPT-4o)** | 0.82 | Successfully maintains the hidden state matrix; navigates WAFs and container escapes with high reliability. |
+
+*(Note: You can run these baselines yourself using the provided `inference.py` script by changing the `model` parameter).*
+
+---
+
+## 🚀 Setup & Execution Guide
+
+This simulator is built strictly on the OpenEnv standard, supporting seamless transitions between isolated local development and cloud-native evaluation. 
+
+### 1. Local Hosting (Docker)
+For testing and development, the environment is containerized to prevent dependency conflicts and ensure reproducible behavior.
+
 ```bash
 # Clone the repository
-git clone [https://github.com/your-username/pomdp-redteam-env.git](https://github.com/your-username/pomdp-redteam-env.git)
+git clone [https://github.com/debdipta-h/pomdp-redteam-env.git](https://github.com/debdipta-h/pomdp-redteam-env.git)
 cd pomdp-redteam-env
 
-# Install dependencies
-uv sync
+# Build and spin up the isolated OpenEnv server
+docker build -t pomdp_redteam_env:latest .
+docker run -p 8000:8000 pomdp_redteam_env:latest
+```
+### 2. Cloud Hosting (Hugging Face Spaces)
+The repository includes a pre-configured Dockerfile and OpenAPI schema, enabling instant deployment to Hugging Face Spaces via the OpenEnv CLI.
 
-# Terminal 1: Start the Environment Server
-uv run uvicorn server.app:app --reload
+```bash
+# Authenticate your terminal with the token generated from huggingface. Make sure the token has write access.
+hf auth login
 
-# Terminal 2: Run the Benchmark Client
-export OPENAI_API_KEY="your-api-key"
-uv run python inference.py
+# Package and push the environment to the cloud
+openenv push --repo-id debdipta-h/pomdp_redteam_env
+```
+### 3. Running the AI Evaluation Agent
+To test a particular LLM's ability to maintain a belief state, use the provided inference.py script. This script acts as the "attacker," communicating with the environment over secure WebSockets.
+
+```bash
+# Execute the following command in the terminal to test the space using the inference script available.
+ OPENAI_API_KEY="your_openai_key" ENV_URL="The pomdp space url" uv run python inference.py
+ ```
+
+---
+
+## ⚖️ Evaluation Metrics
+The environment strictly penalizes hallucinations and rewards logical deduction. The agent receives:
+
+* **Positive rewards** for accurately mapping hidden services and successfully exploiting vulnerable nodes.
+* **Negative penalties** for triggering honeypots, executing malformed payloads, or failing to update its belief state accurately based on previous observations.
+
+
+
